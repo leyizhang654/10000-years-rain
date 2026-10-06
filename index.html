@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>记忆标本 - 交互体验</title>
+<style>
+    body { margin: 0; padding: 0; background-color: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; color: #fff; overflow: hidden; }
+    #game { position: relative; width: 100vw; height: 100vh; background: url('初始.png') center/cover no-repeat; overflow: hidden; }
+    .dot { position: absolute; width: 40px; height: 40px; background: rgba(255, 100, 0, 0.6); border: 3px solid #fff; border-radius: 50%; cursor: pointer; box-shadow: 0 0 20px #ff4500; transition: 0.3s; animation: pulse 1.5s infinite; z-index: 10; display: none; }
+    .dot:hover { transform: scale(1.2); background: rgba(255, 100, 0, 0.9); }
+    @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+    #intro-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; z-index: 500; padding: 0 20%; box-sizing: border-box; }
+    #intro-text { font-size: 20px; line-height: 2.2; letter-spacing: 2px; color: #ddd; min-height: 250px; }
+    #intro-btn { margin-top: 30px; padding: 12px 40px; background: #ff4500; color: #fff; border: none; border-radius: 30px; font-size: 18px; cursor: pointer; display: none; box-shadow: 0 0 15px #ff4500; }
+    #intro-btn:hover { background: #ff6347; }
+
+    #story-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 999; flex-direction: column; justify-content: flex-start; align-items: center; }
+    #story-video { width: 100%; height: 60vh; object-fit: contain; outline: none; background: #000; }
+    #scene-subtitle { width: 100%; height: 40vh; padding: 40px 15%; box-sizing: border-box; display: none; color: #ffccbb; font-size: 20px; line-height: 2; letter-spacing: 1px; text-align: center; background: rgba(0,0,0,0.95); z-index: 1000; }
+    #collect-btn { margin-top: 20px; padding: 12px 40px; background: #ff4500; color: #fff; border: none; border-radius: 30px; font-size: 18px; cursor: pointer; box-shadow: 0 0 15px #ff4500; display: none; z-index: 1000; }
+    #collect-btn:hover { background: #ff6347; }
+
+    #item-card { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 400px; background: #1a1a1a; border: 2px solid #ff4500; border-radius: 15px; padding: 25px; text-align: center; z-index: 1001; box-shadow: 0 0 50px rgba(255, 69, 0, 0.5); }
+    #item-card img { width: 100%; height: 200px; object-fit: cover; border-radius: 10px; margin-bottom: 15px; border: 1px solid #fff; }
+    #item-name { font-size: 24px; font-weight: bold; color: #ff4500; margin: 10px 0; letter-spacing: 2px; }
+    #item-desc { font-size: 15px; color: #ccc; line-height: 1.8; margin-bottom: 20px; text-align: left; }
+    #confirm-collect { padding: 12px 40px; background: #ff4500; color: #fff; border: none; border-radius: 20px; cursor: pointer; font-size: 16px; }
+
+    #progress { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.7); padding: 8px 15px; border-radius: 20px; font-size: 16px; border: 1px solid #fff; z-index: 50; display: none; }
+
+    #ready-text { display: none; position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); width: 80%; text-align: center; font-size: 22px; line-height: 1.8; color: #fff; text-shadow: 0 0 10px #000; z-index: 60; letter-spacing: 2px; animation: fadeIn 2s; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    #wake-btn { display: none; position: absolute; bottom: 25%; left: 50%; transform: translateX(-50%); padding: 15px 50px; background: #ff4500; color: #fff; border: 2px solid #fff; border-radius: 50px; font-size: 22px; cursor: pointer; z-index: 50; box-shadow: 0 0 30px #ff4500; letter-spacing: 3px; }
+    #wake-btn:hover { background: #ff6347; }
+
+    #video-player { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 2000; }
+    #video-player video { width: 100%; height: 100%; object-fit: contain; }
+    #final-subtitle-box { position: absolute; bottom: 15%; left: 10%; width: 80%; background: rgba(0, 0, 0, 0.85); border: 2px solid #ff4500; border-radius: 10px; padding: 20px; color: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.8); display: none; z-index: 2100; box-sizing: border-box; }
+    #final-speaker { position: absolute; top: -18px; left: 20px; background: #ff4500; color: white; padding: 5px 15px; border-radius: 5px; font-weight: bold; font-size: 16px; }
+    #final-text { font-size: 18px; line-height: 1.6; min-height: 50px; font-family: "Microsoft YaHei", sans-serif; letter-spacing: 1px; }
+    #end-text { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); font-size: 32px; color: #fff; text-shadow: 0 0 20px #000; z-index: 3000; display: none; text-align: center; font-weight: bold; letter-spacing: 4px; line-height: 1.8; }
+
+    /* 彩蛋雨滴 + 情绪气泡 */
+    .easter-drop { position: absolute; width: 20px; height: 30px; background: #00aaff; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; cursor: pointer; z-index: 4000; box-shadow: 0 0 10px rgba(0,170,255,0.8); animation: dropFall linear forwards; transition: transform 0.3s, opacity 0.3s; }
+    @keyframes dropFall { 0% { top: -50px; opacity: 1; } 100% { top: 110vh; opacity: 0; } }
+    .emotion-bubble { position: fixed; font-size: 20px; font-weight: bold; pointer-events: none; z-index: 9999; animation: floatUp 1.2s ease-out forwards; transform: translate(-50%, -50%) scale(0.5); }
+    @keyframes floatUp {
+        0% { opacity: 1; transform: translate(-50%, -50%) scale(0.5); }
+        50% { opacity: 1; transform: translate(-50%, -80%) scale(1.2); }
+        100% { opacity: 0; transform: translate(-50%, -150%) scale(1); }
+    }
+    
+    /* 彩蛋提示文字 */
+    #easter-tip { position: absolute; top: 60%; left: 50%; transform: translateX(-50%); font-size: 18px; color: #aaa; text-shadow: 0 0 10px #000; z-index: 4500; display: none; pointer-events: none; letter-spacing: 2px; animation: pulse 2s infinite; }
+</style>
+</head>
+<body>
+
+<audio id="bgm" src="bgm.m4a" loop></audio>
+<audio id="sfx-collect" src="collect.m4a"></audio>
+
+<div id="game">
+    <div id="intro-overlay">
+        <div id="intro-text"></div>
+        <button id="intro-btn" onclick="startGame()">进入寂静之城</button>
+    </div>
+
+    <div id="progress">已收集碎片：0 / 3</div>
+    
+    <div class="dot" style="top: 20%; left: 25%;" onclick="openStory(0)"></div>
+    <div class="dot" style="top: 45%; left: 70%;" onclick="openStory(1)"></div>
+    <div class="dot" style="top: 70%; left: 40%;" onclick="openStory(2)"></div>
+
+    <div id="ready-text">恭喜你，集齐了所有情绪碎片。<br>你准备好为这座冰封的城市，带来最后的奇迹了吗？</div>
+    <button id="wake-btn" onclick="startFinale()">✨ 唤醒记忆 ✨</button>
+
+    <div id="story-overlay">
+        <video id="story-video" autoplay></video>
+        <div id="scene-subtitle"></div>
+        <button id="collect-btn" onclick="showItemCard()">点击收集碎片</button>
+    </div>
+
+    <div id="item-card">
+        <img id="item-img" src="" alt="道具">
+        <div id="item-name"></div>
+        <div id="item-desc"></div>
+        <button id="confirm-collect" onclick="confirmCollect()">确认收集</button>
+    </div>
+
+    <div id="video-player">
+        <video id="final-video" autoplay></video>
+        <div id="final-subtitle-box">
+            <div id="final-speaker">系统</div>
+            <div id="final-text"></div>
+        </div>
+    </div>
+    
+    <div id="end-text">去感受痛，去犯错，去流泪。<br>去感受，活着。</div>
+    <div id="easter-tip">请点击屏幕上的雨点，感受不同的情绪吧。</div>
+</div>
+
+<script>
+    const introText = "未来纪元，科技飞速更迭。\n人类为了追求极致的效率与绝对的完美，\n剔除了痛觉，抹平了情绪，遗忘了哭泣。\n\n直到失去温度的世界走向灭亡，沦为一座寂静的空城。\n\n请点击这座城市，\n收集散落的情绪碎片，唤醒最后的记忆。";
+
+    let fragments = 0;
+    const totalFragments = 3;
+    let currentStoryIndex = -1;
+    let collectedIndexes = [];
+
+    // 💡 修正：小女孩来自遥远的世纪，那时候人类还非常鲜活
+    const storyData = [
+        { 
+            video: 'story1.mp4', itemImg: 'story1.png', itemName: '带血的旧纱布', 
+            itemDesc: '它来自遥远的世纪。那时医院里，一个小男孩摔破了膝盖。母亲心疼地掉着眼泪，用粗糙的纱布包扎伤口，为他轻轻吹气。在这个极致无菌、无痛的完美世界，这块肮脏带血的旧纱布，却是人类曾经拥有血肉、真实感受痛楚，并被爱治愈的唯一证明。',
+            subtitle: '【正在进行：系统修复肉体，提取痛觉】为了追求绝对的无菌与完美，未来人类摒弃了脆弱的肉体，用机械替换一切。他们在诊所中无痛无泪地修复自己，如同修理冰冷的机器。'
+        },
+        { 
+            video: 'story2.mp4', itemImg: 'story2.png', itemName: '褪色的电影票', 
+            itemDesc: '它来自遥远的世纪。那是一个周末，一家人挤在拥挤的电影院里，吃着爆米花，看着喜剧片笑得前仰后合。电影票的皱褶里，藏着一个平凡家庭最真实的、充满烟火气的快乐。',
+            subtitle: '【正在进行：情绪净化处理】为了维持绝对完美的稳定，未来人类发明了记忆净化舱。所有被称为“负面”或“失控”的情绪都会被机器吸走，只留下永恒的平静。'
+        },
+        { 
+            video: 'story3.mp4', itemImg: 'story3.png', itemName: '遥远世纪的最后微光', 
+            itemDesc: '它来自那个遥远而又鲜活的世纪。那时，人们会因为一场突如其来的雨而开心，会踩着泥泞的水坑大笑，会因生活中的小事而痛哭流涕。女孩透过这滴来自一万年前的雨，看到了那个毫无保留、充满生命力的时代。她的眼底闪烁着对未知的渴望，而这丝系统无法计算的“情感漏洞”，正是人类区别于冰冷机器的最后灵魂。',
+            subtitle: '【正在进行：情感溯源检索】系统正在破译一道来自遥远世纪的异常情感信号。那时候，人们会因为下雨而开心，会因为寒冷而相拥。那是人类最鲜活、最真实的时代。'
+        }
+    ];
+
+    function typeWriterIntro(text, i, fn) {
+        if (i < text.length) {
+            document.getElementById('intro-text').innerHTML += text.charAt(i);
+            setTimeout(function() { typeWriterIntro(text, i + 1, fn); }, 250);
+        } else if (typeof fn == 'function') { fn(); }
+    }
+
+    window.onload = function() {
+        typeWriterIntro(introText, 0, function() {
+            document.getElementById('intro-btn').style.display = 'block';
+        });
+    };
+
+    function startGame() {
+        document.getElementById('intro-overlay').style.display = 'none';
+        document.getElementById('progress').style.display = 'block';
+        const bgm = document.getElementById('bgm');
+        bgm.volume = 0.4;
+        bgm.play().catch(e => console.log("请确保 bgm.m4a 存在"));
+        document.querySelectorAll('.dot').forEach(dot => dot.style.display = 'block');
+    }
+
+    function openStory(index) {
+        if (collectedIndexes.includes(index)) return;
+        currentStoryIndex = index;
+        const overlay = document.getElementById('story-overlay');
+        const video = document.getElementById('story-video');
+        const subtitle = document.getElementById('scene-subtitle');
+        const collectBtn = document.getElementById('collect-btn');
+        
+        video.src = storyData[index].video;
+        subtitle.innerText = storyData[index].subtitle;
+        overlay.style.display = 'flex';
+        subtitle.style.display = 'block';
+        collectBtn.style.display = 'none';
+        video.play();
+        
+        video.onended = function() {
+            collectBtn.style.display = 'block';
+            subtitle.style.display = 'none';
+        };
+    }
+
+    function showItemCard() {
+        document.getElementById('story-overlay').style.display = 'none';
+        document.getElementById('item-img').src = storyData[currentStoryIndex].itemImg;
+        document.getElementById('item-name').innerText = storyData[currentStoryIndex].itemName;
+        document.getElementById('item-desc').innerText = storyData[currentStoryIndex].itemDesc;
+        document.getElementById('item-card').style.display = 'block';
+    }
+
+    function confirmCollect() {
+        document.getElementById('item-card').style.display = 'none';
+        if (collectedIndexes.includes(currentStoryIndex)) return;
+        
+        collectedIndexes.push(currentStoryIndex);
+        fragments = collectedIndexes.length;
+        
+        const sfx = document.getElementById('sfx-collect');
+        sfx.volume = 0.8;
+        sfx.play().catch(e => console.log("请确保 collect.m4a 存在"));
+        
+        document.getElementById('progress').innerText = `已收集碎片：${fragments} / ${totalFragments}`;
+        document.querySelectorAll('.dot')[currentStoryIndex].style.display = 'none';
+        
+        if (fragments >= totalFragments) {
+            document.getElementById('progress').style.display = 'none';
+            document.getElementById('ready-text').style.display = 'block';
+            document.getElementById('wake-btn').style.display = 'block';
+        }
+    }
+
+    function startFinale() {
+        document.getElementById('ready-text').style.display = 'none';
+        document.getElementById('wake-btn').style.display = 'none';
+        document.getElementById('bgm').pause();
+        
+        document.getElementById('video-player').style.display = 'block';
+        const video = document.getElementById('final-video');
+        const subtitleBox = document.getElementById('final-subtitle-box');
+        const speaker = document.getElementById('final-speaker');
+        const textElement = document.getElementById('final-text');
+        
+        const finalVideos = ['video1.mp4', 'video2.mp4', 'video3.mp4'];
+        let currentVideoIndex = 0;
+
+        function playNextVideo() {
+            if (currentVideoIndex >= finalVideos.length) {
+                document.getElementById('video-player').style.display = 'none';
+                document.getElementById('end-text').style.display = 'block';
+                document.getElementById('easter-tip').style.display = 'block'; // 显示提示文字
+                startEasterEgg();
+                return;
+            }
+
+            video.src = finalVideos[currentVideoIndex];
+            video.play();
+            subtitleBox.style.display = 'none';
+
+            // 视频2：未来人
+            if (currentVideoIndex === 1) { 
+                setTimeout(() => {
+                    subtitleBox.style.display = 'block';
+                    speaker.innerText = '未来人';
+                    textElement.innerText = '我……感受到了温度。一种不属于这个完美世界的、粗糙的触感……';
+                }, 2000);
+                setTimeout(() => {
+                    textElement.innerText = '透过这滴来自遥远世纪的雨，我看到了那个古老的时代……人们充满着鲜活的生命力。';
+                }, 6000);
+            } 
+            // 视频3：小女孩
+            else if (currentVideoIndex === 2) { 
+                setTimeout(() => {
+                    subtitleBox.style.display = 'block';
+                    speaker.innerText = '遥远世纪的女孩';
+                    textElement.innerText = '那时的人们，会因为下雨而开心，会大声笑，会痛快地哭。那是人类最鲜活的样子。';
+                }, 2000);
+                setTimeout(() => {
+                    speaker.innerText = '未来人';
+                    textElement.innerText = '原来，这来自遥远世纪的雨，就是她存在的证明。这就是……活着的感觉。';
+                }, 6000);
+            }
+
+            video.onended = function() {
+                currentVideoIndex++;
+                playNextVideo();
+            };
+        }
+
+        playNextVideo();
+    }
+
+    function startEasterEgg() {
+        const emotions = [
+            { text: "喜悦", color: "#ffcc00" },
+            { text: "悲伤", color: "#00aaff" },
+            { text: "愤怒", color: "#ff4500" },
+            { text: "恐惧", color: "#8800ff" },
+            { text: "爱", color: "#ff66b2" },
+            { text: "平静", color: "#00ff88" }
+        ];
+
+        setInterval(() => {
+            const drop = document.createElement('div');
+            drop.className = 'easter-drop';
+            drop.style.left = Math.random() * 90 + 'vw';
+            drop.style.animationDuration = (Math.random() * 4 + 8) + 's'; 
+            
+            const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
+            drop.style.backgroundColor = randomEmotion.color;
+            drop.style.boxShadow = `0 0 15px ${randomEmotion.color}`;
+            
+            drop.onclick = function(e) {
+                e.stopPropagation();
+                const bubble = document.createElement('div');
+                bubble.className = 'emotion-bubble';
+                bubble.innerText = randomEmotion.text;
+                bubble.style.left = e.clientX + 'px';
+                bubble.style.top = e.clientY + 'px';
+                bubble.style.color = randomEmotion.color;
+                bubble.style.textShadow = `0 0 20px ${randomEmotion.color}`;
+                document.body.appendChild(bubble);
+                
+                drop.style.transform = 'scale(0)';
+                drop.style.opacity = '0';
+                
+                setTimeout(() => { bubble.remove(); }, 1200);
+                setTimeout(() => { drop.remove(); }, 300);
+            };
+            
+            document.getElementById('game').appendChild(drop);
+            setTimeout(() => { if (drop.parentNode) drop.remove(); }, 15000);
+        }, 800);
+    }
+</script>
+
+</body>
+</html>
